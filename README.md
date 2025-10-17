@@ -1,2 +1,1 @@
-# Programaci-n_Multiproceso_Tarea
-Tarea Programación de Multiproceso - Javier 2 DAM
+# Programación de Multiproceso Tarea - Javier 2 DAM (2025 - 2026)
