@@ -22,98 +22,114 @@ int main(void){
         return 1;
     }
 
-    //Creamos el fork del pid 1 (Para el proceso padre P1 y proceso hijo P1)
+    // Creamos el fork del pid 1 (Para el proceso padre P1 y proceso hijo P2)
     pid1 = fork();
 
-    if (pid1 < 0){//Error en primer Fork();
+    if (pid1 < 0){// Error en primer Fork()
         printf("\nHa ocurrido un error.");
         exit(1);
     }
-    else if(pid1 == 0){//Proceso hijo de P1
+    else if(pid1 == 0){// Proceso hijo P2
 
-        // Crear pipe1 entre P2 y P3
+        // Crear pipe2 entre P2 y P3
         if (pipe(fd2) == -1) {
-            printf("\nError creando pipe1\n");
+            printf("\nError creando pipe2\n");
             return 1;
         }
 
         pid2 = fork();
 
-        if (pid2 < 0){//Error en segundo fork();
+        if (pid2 < 0){// Error en segundo fork()
             printf("\nHa ocurrido un error.");
             exit(1);
-
         }
-        else if(pid2 == 0){//Proceso 3
+        else if(pid2 == 0){// Proceso P3
 
             printf("\nSoy el proceso P3 - PID = %d - PPID = %d\n", getpid(), getppid());
-            int datosATratrar[3];
-            read(fd2[1], &datosATratrar, sizeof(datosATratrar));
+            
+            int cantidadNumeros;
+            read(fd2[0], &cantidadNumeros, sizeof(cantidadNumeros));
+            
+            int datosATratar[cantidadNumeros];
+            read(fd2[0], datosATratar, sizeof(int) * cantidadNumeros);
 
             int pares = 0, impares = 1;
-            for (int i = 0; i < sizeof(datosATratrar); i++){
-                
-                if (datosATratrar[i] % 2 == 0){ //Tratar datos pares
-                    pares = pares + datosATratrar[i];
-                }else{//Tratar datos impares
-                    impares = impares * datosATratrar[i];
+            for (int i = 0; i < cantidadNumeros; i++){
+                if (datosATratar[i] % 2 == 0){ // Tratar datos pares
+                    pares = pares + datosATratar[i];
+                } else { // Tratar datos impares
+                    impares = impares * datosATratar[i];
                 }
             }
             
-            //Definimos un array para reenviar los datos.
+            // Definimos un array para reenviar los datos
             int datosTratados[2];
-            datosTratados[1] = pares;
-            datosTratados[2] = impares;
+            datosTratados[0] = pares;
+            datosTratados[1] = impares;
 
-            //Enviamos el array
-            write(fd2[0], &datosATratrar, sizeof(datosATratrar));
+            // Enviamos el array
+            write(fd2[1], datosTratados, sizeof(datosTratados));
 
-            close(fd2[0]);//Cerramos la escritura
-            close(fd2[1]);//Cerramos la lectura
-            printf("0\nHa terminado el proceso P3");
+            close(fd2[0]); // Cerramos la lectura
+            close(fd2[1]); // Cerramos la escritura
+            printf("Ha terminado el proceso P3\n");
             exit(0);
         }
-        else{//Proceso 2
+        else{// Proceso P2
 
             printf("\nSoy el proceso P2 - PID = %d - PPID = %d\n", getpid(), getppid());
 
-            //Creamos el fork del pid 1 (Para el proceso padre P1 y proceso hijo P1
-            //Recibimos el valor de P1:
-            close(fd1[0]);//Cerramos el extremo de escritura
-            int cantidadNumeros = 3;
-            read(fd1[1], &cantidadNumeros, sizeof(cantidadNumeros));
-            close(fd1[0]);//Creamos el extremo de lectura.
-            printf("\nHe recibido del proceso P1 esta cantidad de números: %d", cantidadNumeros);
+            // Recibimos el valor de P1:
+            close(fd1[1]); // Cerramos el extremo de escritura del pipe1
+            int cantidadNumeros;
+            read(fd1[0], &cantidadNumeros, sizeof(cantidadNumeros));
+            close(fd1[0]); // Cerramos el extremo de lectura del pipe1
+            printf("\nHe recibido del proceso P1 esta cantidad de números: %d\n", cantidadNumeros);
 
             int datosATratar[cantidadNumeros];
 
-            for (int i = 0; i < cantidadNumeros; i++){//Creamos un for que pida todos los números con los que trabajaremos
+            printf("Introduce %d números:\n", cantidadNumeros);
+            for (int i = 0; i < cantidadNumeros; i++){ // Pedimos todos los números
+                printf("Número %d: ", i+1);
                 scanf("%d", &datosATratar[i]);
             }
             
-            write(fd2[0], &datosATratar, sizeof(datosATratar));
-            read()
+            // Enviamos datos a P3
+            close(fd2[0]); // Cerramos lectura del pipe2
+            write(fd2[1], &cantidadNumeros, sizeof(cantidadNumeros));
+            write(fd2[1], datosATratar, sizeof(int) * cantidadNumeros);
 
-            wait(NULL);//Esperamos a que el proceso P3 termine
-            printf("\nHa terminado el proceso P2");
+            // Recibimos resultados de P3
+            int resultados[2];
+            read(fd2[0], resultados, sizeof(resultados));
+            
+            printf("\nResultados recibidos de P3:\n");
+            printf("Suma de pares: %d\n", resultados[0]);
+            printf("Producto de impares: %d\n", resultados[1]);
+
+            close(fd2[1]); // Cerramos escritura del pipe2
+            close(fd2[0]); // Cerramos lectura del pipe2
+            
+            wait(NULL); // Esperamos a que el proceso P3 termine
+            printf("Ha terminado el proceso P2\n");
             exit(0);
         }  
     }
-    else{//Proceso padre de P1 --------------------------------------------------------------------------------------------------------
+    else{// Proceso padre P1
         printf("\nSoy el proceso P1 - PID = %d - PPID = %d\n", getpid(), getppid());
-        printf("\nDame la cantidad de números que quieres enviar:");
+        printf("\nDame la cantidad de números que quieres enviar: ");
 
-        //Pedimos la cantidad de números y la escribimos en pantalla para verificar que se ha enviado correctamente.
+        // Pedimos la cantidad de números
         int cantidadNumeros;
         scanf("%d", &cantidadNumeros);
-        printf("\nEnviando %d al proceso P2.", cantidadNumeros);
+        printf("\nEnviando %d al proceso P2.\n", cantidadNumeros);
     
-        close(fd1[0]);//Cerramos el extremo de lectura 
-        write(fd1[0], &cantidadNumeros, sizeof(cantidadNumeros));
-        close(fd1[0]);//Ceramos el extremos de escritura
+        close(fd1[0]); // Cerramos el extremo de lectura del pipe1
+        write(fd1[1], &cantidadNumeros, sizeof(cantidadNumeros));
+        close(fd1[1]); // Cerramos el extremo de escritura del pipe1
 
-        wait(NULL);//Esperamos que el proceso P2 termine
-        printf("\nHa terminado el proceso P1");
+        wait(NULL); // Esperamos que el proceso P2 termine
+        printf("Ha terminado el proceso P1\n");
     }
 
     return 0;
